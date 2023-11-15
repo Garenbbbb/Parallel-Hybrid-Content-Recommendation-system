@@ -1,6 +1,7 @@
 package main
 
 import (
+	"Work-Stealing-Based-Parallel-Hybrid-Content-Recommendation-system/data"
 	"Work-Stealing-Based-Parallel-Hybrid-Content-Recommendation-system/deque"
 	"fmt"
 	"math"
@@ -41,7 +42,7 @@ func newWorker(id int) Worker {
 	return Worker{ID: id}
 }
 
-func contains(items *[]deque.Content, itemID string) bool {
+func contains(items *[]data.Content, itemID string) bool {
 	for _, item := range *items {
 		if item.ID == itemID {
 			return true
@@ -50,7 +51,7 @@ func contains(items *[]deque.Content, itemID string) bool {
 	return false
 }
 
-func CartFeatures(cart *deque.ShopingCart) map[string]float64 {
+func CartFeatures(cart *data.ShopingCart) map[string]float64 {
 	cartFeatures := make(map[string]float64)
 	featureCounts := make(map[string]int)
 
@@ -87,7 +88,7 @@ func Similarity(features1 map[string]float64, features2 map[string]float64) floa
 	return dotProduct / (magnitude1 * magnitude2)
 }
 
-func FindTopSimilarItems(user deque.ShopingCart, content *[]deque.Content, topN int) []result {
+func FindTopSimilarItems(user data.ShopingCart, content *[]data.Content, topN int) []result {
 	var similarItems []result
 
 	user_feature := CartFeatures(&user)
@@ -109,18 +110,19 @@ func FindTopSimilarItems(user deque.ShopingCart, content *[]deque.Content, topN 
 	return similarItems[:topN]
 }
 
-func processTask(task deque.Task, workerId int, content *[]deque.Content) string {
+func processTask(task deque.Task, workerId int, content *[]data.Content) string {
 
 	topSimilarItems := FindTopSimilarItems(task.Task, content, 3)
+	itemList := ""
 	for _, item := range topSimilarItems {
-		fmt.Println(item.ID)
+		itemList += item.ID + " "
 	}
 	// Actual task processing logic goes here
-	return strconv.Itoa(workerId) + "Processing Task" + strconv.Itoa(task.ID)
+	return "Worker " + strconv.Itoa(workerId) + " Processed Task" + strconv.Itoa(task.ID) + " Result: " + itemList + "recommanded to " + task.Task.ID
 }
 
 // WorkStealingScheduler runs the work-stealing algorithm
-func (ws *WorkStealingScheduler) Run(result chan string, tasks *[]deque.Task, content *[]deque.Content) {
+func (ws *WorkStealingScheduler) Run(result chan string, tasks *[]deque.Task, content *[]data.Content) {
 
 	// Distribute tasks to workers
 	for i, task := range *tasks {
@@ -143,7 +145,7 @@ func (ws *WorkStealingScheduler) Run(result chan string, tasks *[]deque.Task, co
 }
 
 // workerProcessTasks simulates a worker processing tasks
-func workerProcessTasks(worker *Worker, workerPool *WorkStealingScheduler, result chan string, content *[]deque.Content) {
+func workerProcessTasks(worker *Worker, workerPool *WorkStealingScheduler, result chan string, content *[]data.Content) {
 	for {
 		task, ok := worker.Deque.PopFront()
 		if !ok {
@@ -166,37 +168,8 @@ func workerProcessTasks(worker *Worker, workerPool *WorkStealingScheduler, resul
 
 func main() {
 
-	contents := []deque.Content{
-		{ID: "Item1", Features: map[string]float64{"Feature1": 0.2, "Feature2": 0.8}},
-		{ID: "Item2", Features: map[string]float64{"Feature1": 0.1, "Feature2": 0.3}},
-		{ID: "Item3", Features: map[string]float64{"Feature1": 0.2, "Feature2": 0.1}},
-		{ID: "Item4", Features: map[string]float64{"Feature1": 0.3, "Feature2": 0.2}},
-		{ID: "Item5", Features: map[string]float64{"Feature1": 0.6, "Feature2": 0.2}},
-		{ID: "Item6", Features: map[string]float64{"Feature1": 0.1, "Feature2": 0.5}},
-		{ID: "Item7", Features: map[string]float64{"Feature1": 0.2, "Feature2": 0.0}},
-		{ID: "Item8", Features: map[string]float64{"Feature1": 0.5, "Feature2": 0.5}},
-		{ID: "Item9", Features: map[string]float64{"Feature1": 0.5, "Feature2": 0.5}},
-		{ID: "Item10", Features: map[string]float64{"Feature1": 0, "Feature2": 0.4}},
-		// Add more content items
-	}
-
-	taskPool := []deque.ShopingCart{
-		{ID: "User1", Items: []deque.Content{{ID: "Item1", Features: map[string]float64{"Feature1": 0.2, "Feature2": 0.8}}}},
-		{ID: "User2", Items: []deque.Content{{ID: "Item2", Features: map[string]float64{"Feature1": 0.5, "Feature2": 0.1}}}},
-		{ID: "User3", Items: []deque.Content{{ID: "Item3", Features: map[string]float64{"Feature1": 0.6, "Feature2": 0.3}}}},
-		{ID: "User4", Items: []deque.Content{{ID: "Item4", Features: map[string]float64{"Feature1": 0.1, "Feature2": 0.5}}}},
-		{ID: "User5", Items: []deque.Content{{ID: "Item5", Features: map[string]float64{"Feature1": 0.4, "Feature2": 0.3}}}},
-		{ID: "User6", Items: []deque.Content{{ID: "Item6", Features: map[string]float64{"Feature1": 0.1, "Feature2": 0.9}}}},
-		{ID: "User7", Items: []deque.Content{{ID: "Item7", Features: map[string]float64{"Feature1": 0.5, "Feature2": 0.3}}}},
-		{ID: "User8", Items: []deque.Content{{ID: "Item8", Features: map[string]float64{"Feature1": 0.1, "Feature2": 0.0}}}},
-		{ID: "User9", Items: []deque.Content{{ID: "Item2", Features: map[string]float64{"Feature1": 0.6, "Feature2": 0.3}}}},
-		{ID: "User10", Items: []deque.Content{{ID: "Item3", Features: map[string]float64{"Feature1": 0.2, "Feature2": 0.7}}}},
-		{ID: "User11", Items: []deque.Content{{ID: "Item5", Features: map[string]float64{"Feature1": 0.1, "Feature2": 0.3}}}},
-		{ID: "User12", Items: []deque.Content{{ID: "Item1", Features: map[string]float64{"Feature1": 0.1, "Feature2": 0.1}}}},
-		{ID: "User13", Items: []deque.Content{{ID: "Item5", Features: map[string]float64{"Feature1": 0.5, "Feature2": 0.3}}}},
-		{ID: "User14", Items: []deque.Content{{ID: "Item7", Features: map[string]float64{"Feature1": 0.1, "Feature2": 0.8}}}},
-		{ID: "User15", Items: []deque.Content{{ID: "Item9", Features: map[string]float64{"Feature1": 0.1, "Feature2": 0.4}}}},
-	}
+	contents := data.CreateRandomContent(10000, 10, 0.5)
+	taskPool := data.CreateRandomTasks(10, 2, 5, 10, 0.5)
 
 	result := make(chan string)
 	workers := 4
@@ -229,14 +202,6 @@ func main() {
 	// 	{ID: "User9", Preferences: map[string]float64{"Item1": 5, "Item2": 3, "Item3": 2, "Item5": 1, "Item6": 5, "Item7": 4, "Item8": 5}},
 	// 	// Add more users
 	// }
-
-	// shopping_card := []ShopingCart{
-	// 	{ID: "User1", Items: []string{"Item1", "Item2"}},
-	// 	{ID: "User2", Items: []string{"Item3", "Item4"}},
-	// }
-
-	// contentAnalysisCh := make(chan map[string]map[string]float64)
-	// userAnalysisCh := make(chan map[string]map[string]float64)
 
 }
 

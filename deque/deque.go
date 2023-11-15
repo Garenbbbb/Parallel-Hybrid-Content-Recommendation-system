@@ -1,22 +1,13 @@
 package deque
 
 import (
+	"Work-Stealing-Based-Parallel-Hybrid-Content-Recommendation-system/data"
 	"sync"
 )
 
-type Content struct {
-	ID       string
-	Features map[string]float64
-}
-
-type ShopingCart struct {
-	ID    string
-	Items []Content
-}
-
 type Task struct {
 	ID   int
-	Task ShopingCart
+	Task data.ShopingCart
 }
 
 type Deque struct {
