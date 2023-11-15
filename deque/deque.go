@@ -6,29 +6,38 @@ import (
 )
 
 type Task struct {
-	ID   int
-	Task data.ShopingCart
+	ID int
 }
 
-type Deque struct {
+type TaskCart struct {
+	Task
+	Info data.ShopingCart
+}
+
+type TaskItem struct {
+	Task
+	Info [2]int
+}
+
+type Deque[T any] struct {
 	mu   sync.Mutex
-	head *node
-	tail *node
+	head *node[T]
+	tail *node[T]
 }
 
 // node represents a node in the deque
-type node struct {
-	task Task
-	next *node
-	prev *node
+type node[T any] struct {
+	task T
+	next *node[T]
+	prev *node[T]
 }
 
 // PushFront adds a task to the front of the deque
-func (d *Deque) PushFront(task Task) {
+func (d *Deque[T]) PushFront(task T) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	newNode := &node{task: task}
+	newNode := &node[T]{task: task}
 
 	if d.head == nil {
 		d.head = newNode
@@ -41,12 +50,13 @@ func (d *Deque) PushFront(task Task) {
 }
 
 // PopFront removes and returns a task from the front of the deque
-func (d *Deque) PopFront() (Task, bool) {
+func (d *Deque[T]) PopFront() (T, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	if d.head == nil {
-		return Task{}, false
+		var empty T
+		return empty, false
 	}
 
 	task := d.head.task
@@ -62,11 +72,11 @@ func (d *Deque) PopFront() (Task, bool) {
 }
 
 // PushBack adds a task to the back of the deque
-func (d *Deque) PushBack(task Task) {
+func (d *Deque[T]) PushBack(task T) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	newNode := &node{task: task}
+	newNode := &node[T]{task: task}
 
 	if d.tail == nil {
 		d.head = newNode
@@ -79,12 +89,13 @@ func (d *Deque) PushBack(task Task) {
 }
 
 // PopBack removes and returns a task from the back of the deque
-func (d *Deque) PopBack() (Task, bool) {
+func (d *Deque[T]) PopBack() (T, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	if d.tail == nil {
-		return Task{}, false
+		var empty T
+		return empty, false
 	}
 
 	task := d.tail.task
