@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"sort"
 	"sync"
+	"time"
 )
 
 type Recommendation struct {
@@ -46,6 +47,11 @@ func contains(items *[]data.Content, itemID string) bool {
 		}
 	}
 	return false
+}
+
+func roundToDecimal(value float64, decimalPlaces int) float64 {
+	precision := math.Pow(10, float64(decimalPlaces))
+	return math.Round(value*precision) / precision
 }
 
 func CartFeatures(cart *data.ShopingCart) map[string]float64 {
@@ -103,11 +109,6 @@ func FindTopSimilarItems(user data.ShopingCart, content *map[string]data.ItemDat
 	return similarItems[:topN]
 }
 
-func roundToDecimal(value float64, decimalPlaces int) float64 {
-	precision := math.Pow(10, float64(decimalPlaces))
-	return math.Round(value*precision) / precision
-}
-
 func FindTopSimilarItemsUnRated(task data.Content, rateList *data.RateData, topN int) []RecommendationItem {
 	var unRated []string
 	var rated []string
@@ -132,7 +133,7 @@ func FindTopSimilarItemsUnRated(task data.Content, rateList *data.RateData, topN
 				continue
 			}
 		}
-		similarItemsRating = append(similarItemsRating, RecommendationItem{ID: item, SimilarityScore: numerator / denomertor})
+		similarItemsRating = append(similarItemsRating, RecommendationItem{ID: item, SimilarityScore: roundToDecimal(numerator/denomertor, 2)})
 	}
 	sort.Slice(similarItemsRating, func(i, j int) bool {
 		return similarItemsRating[i].SimilarityScore > similarItemsRating[j].SimilarityScore
@@ -204,20 +205,56 @@ func (ws *WorkStealingScheduler[T]) Run(result chan Recommendation, tasks *[]T) 
 	wg.Wait()
 }
 
+func resultGatherProcess(finalResult chan Recommendation, taskCount int, resultItem chan Recommendation, resultCart chan Recommendation) {
+	resultMap := make(map[string][]RecommendationItem)
+	cnt := 0
+	for {
+		if cnt == taskCount*2 {
+			break
+		}
+		// Use select to wait for messages from either channel
+		select {
+		case msg1 := <-resultItem:
+			cnt += 1
+			val, ok := resultMap[msg1.UserID]
+			if ok {
+				finalResult <- Recommendation{UserID: msg1.UserID, RecommendList: append(msg1.RecommendList, val...)}
+			} else {
+				resultMap[msg1.UserID] = msg1.RecommendList
+			}
+		case msg2 := <-resultCart:
+			cnt += 1
+			val, ok := resultMap[msg2.UserID]
+			if ok {
+				finalResult <- Recommendation{UserID: msg2.UserID, RecommendList: append(msg2.RecommendList, val...)}
+			} else {
+				resultMap[msg2.UserID] = msg2.RecommendList
+			}
+		}
+	}
+
+}
+
 func main() {
 	//Num of workers per Pool
-	workersContent := 4
-	workersItem := 4
+	workersContent := 3
+	workersItem := 3
 	//Num of recommanded product per task
 	recommandCount := 3
 	//Num of tasks
-	taskCount := 10
+	taskCount := 100
+	userpoolCnt := 10000
+	contentCartCnt := 10000
 
-	UserPool := data.CreateRandomUserRatePool(100, 100, 0.1)
-
+	UserPool := data.CreateRandomUserRatePool(userpoolCnt, 100, 0.1)
 	//pre-computed data itemI -> ItemJ cosine similarity score based on who rated both of them if haveing n item, there will be (n)*(n-1)/2 by user pool
+	a := time.Now()
 	similarity_martix := data.ComputeSimilarity_martix(UserPool)
+	b := time.Now()
+	fmt.Println(b.Sub(a))
 
+	startTime := time.Now()
+	fmt.Println("----------------------Similarity Matrix computed Start Processing----------------------")
 	// Item-Based Collaborative Filtering
 	taskItemPool := data.CreateRandomItemTask(taskCount, 100, 0.9)
 
@@ -227,16 +264,10 @@ func main() {
 	for i := 0; i < taskCount; i++ {
 		tasksItem[i] = deque.TaskItem{Task: deque.Task{ID: i + 1, Count: recommandCount}, Info: taskItemPool[i], Data: &similarity_martix}
 	}
-	go workerPoolItem.Run(resultItem, &tasksItem)
 
-	for i := 0; i < taskCount; i++ {
-		fmt.Println(<-resultItem)
-	}
-
-	close(resultItem)
 	//------------------------------------------------------------------------------------------------
 	//content-based
-	contentCart := data.CreateRandomContent(1000, 10, 0.5)
+	contentCart := data.CreateRandomContent(contentCartCnt, 10, 0.5)
 	taskCartPool := data.CreateRandomTasks(taskCount, 2, 5, 10, 0.5)
 
 	resultCart := make(chan Recommendation)
@@ -245,29 +276,21 @@ func main() {
 	for i := 0; i < taskCount; i++ {
 		tasks[i] = deque.TaskCart{Task: deque.Task{ID: i + 1, Count: recommandCount}, Info: taskCartPool[i], Data: &contentCart}
 	}
+	go workerPoolItem.Run(resultItem, &tasksItem)
 	go workerPool.Run(resultCart, &tasks)
 
+	finalResult := make(chan Recommendation)
+
+	//combine result from content-based and Item-Based Collaborative Filtering
+	go resultGatherProcess(finalResult, taskCount, resultItem, resultCart)
+
 	for i := 0; i < taskCount; i++ {
-		fmt.Println(<-resultCart)
+		fmt.Println(<-finalResult)
 	}
+	endTime := time.Now()
+	fmt.Println(endTime.Sub(startTime))
+	close(resultItem)
 	close(resultCart)
+	close(finalResult)
 
-	// go func() {
-	// 	time.Sleep(2 * time.Second)
-	// 	ch1 <- "Message from channel 1"
-	// }()
-
-	// // Goroutine to send a message on ch2 after 3 seconds
-	// go func() {
-	// 	time.Sleep(3 * time.Second)
-	// 	ch2 <- "Message from channel 2"
-	// }()
-
-	// // Use select to wait for messages from either channel
-	// select {
-	// case msg1 := <-ch1:
-	// 	fmt.Println(msg1)
-	// case msg2 := <-ch2:
-	// 	fmt.Println(msg2)
-	// }
 }

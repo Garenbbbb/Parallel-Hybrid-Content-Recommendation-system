@@ -66,7 +66,7 @@ func CreateRandomContent(num int, limit int, prob float64) map[string]ItemData {
 
 	data := make(map[string]ItemData)
 	for i := 0; i < num; i++ {
-		data["Product"+strconv.Itoa(i)] = ItemData{Features: CreateRandomFeature(limit, prob)}
+		data["Item"+strconv.Itoa(i)] = ItemData{Features: CreateRandomFeature(limit, prob)}
 	}
 	return data
 }
