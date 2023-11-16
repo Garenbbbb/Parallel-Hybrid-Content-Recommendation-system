@@ -83,7 +83,7 @@ func Similarity(features1 map[string]float64, features2 map[string]float64) floa
 	return roundToDecimal(dotProduct/(magnitude1*magnitude2), 3)
 }
 
-func FindTopSimilarItems(user data.ShopingCart, content *map[string]data.Content, topN int) []RecommendationItem {
+func FindTopSimilarItems(user data.ShopingCart, content *map[string]data.ItemData, topN int) []RecommendationItem {
 	var similarItems []RecommendationItem
 
 	user_feature := CartFeatures(&user)
@@ -108,7 +108,7 @@ func roundToDecimal(value float64, decimalPlaces int) float64 {
 	return math.Round(value*precision) / precision
 }
 
-func FindTopSimilarItemsUnRated(task data.Content, content *map[string]data.Content, topN int) []RecommendationItem {
+func FindTopSimilarItemsUnRated(task data.Content, rateList *data.RateData, topN int) []RecommendationItem {
 	var unRated []string
 	var rated []string
 	var similarItemsRating []RecommendationItem
@@ -122,21 +122,14 @@ func FindTopSimilarItemsUnRated(task data.Content, content *map[string]data.Cont
 	for _, item := range unRated {
 		numerator := 0.0
 		denomertor := 0.0
-		for _, rate := range rated {
-			key := fmt.Sprintf("%s_to_%s", item, rate)
-			value, exists := (*content)["similarity"].Features[key]
+		for _, rated := range rated {
+			key := fmt.Sprintf("%s_to_%s", item, rated)
+			value, exists := (*rateList).Rating[key]
 			if exists {
-				numerator += task.Features[rate] * value
+				numerator += task.Features[rated] * value
 				denomertor += value
 			} else {
-				key := fmt.Sprintf("%s_to_%s", rate, item)
-				value, exists := (*content)["similarity"].Features[key]
-				if exists {
-					numerator += task.Features[rate] * value
-					denomertor += value
-				} else {
-					continue
-				}
+				continue
 			}
 		}
 		similarItemsRating = append(similarItemsRating, RecommendationItem{ID: item, SimilarityScore: numerator / denomertor})
@@ -149,20 +142,20 @@ func FindTopSimilarItemsUnRated(task data.Content, content *map[string]data.Cont
 }
 
 // Content-based filtering
-func processTask[T any](task T, workerId int, content *map[string]data.Content) Recommendation {
+func processTask[T any](task T, workerId int) Recommendation {
 
 	t := reflect.TypeOf(task)
 	switch t {
 	case reflect.TypeOf(deque.TaskCart{}):
 		task, _ := any(task).(deque.TaskCart)
-		topSimilarItems := FindTopSimilarItems(task.Info, content, task.Count)
+		topSimilarItems := FindTopSimilarItems(task.Info, task.Data, task.Count)
 		recommendationResult := Recommendation{UserID: task.Info.ID, RecommendList: topSimilarItems}
 		// jsonData, _ := json.Marshal(topSimilarItems)
 		// fmt.Println("Worker " + strconv.Itoa(workerId) + " Processed Task" + strconv.Itoa(task.Task.ID)) //+ " Result: " + string(jsonData) + "recommanded to " + task.Info.ID)
 		return recommendationResult
 	case reflect.TypeOf(deque.TaskItem{}):
 		task, _ := any(task).(deque.TaskItem)
-		topSimilarItems := FindTopSimilarItemsUnRated(task.Info, content, task.Count)
+		topSimilarItems := FindTopSimilarItemsUnRated(task.Info, task.Data, task.Count)
 		recommendationResult := Recommendation{UserID: task.Info.ID, RecommendList: topSimilarItems}
 		return recommendationResult
 	default:
@@ -173,7 +166,7 @@ func processTask[T any](task T, workerId int, content *map[string]data.Content) 
 }
 
 // workerProcessTasks simulates a worker processing tasks
-func workerProcessTasks[T any](worker *Worker[T], workerPool *WorkStealingScheduler[T], result chan Recommendation, content *map[string]data.Content) {
+func workerProcessTasks[T any](worker *Worker[T], workerPool *WorkStealingScheduler[T], result chan Recommendation) {
 	for {
 		task, ok := worker.Deque.PopFront()
 		if !ok {
@@ -188,12 +181,12 @@ func workerProcessTasks[T any](worker *Worker[T], workerPool *WorkStealingSchedu
 			}
 		} else {
 			// Process the task
-			result <- processTask(task, worker.ID, content)
+			result <- processTask(task, worker.ID)
 		}
 	}
 }
 
-func (ws *WorkStealingScheduler[T]) Run(result chan Recommendation, tasks *[]T, content *map[string]data.Content) {
+func (ws *WorkStealingScheduler[T]) Run(result chan Recommendation, tasks *[]T) {
 	// Distribute tasks to workers
 	for i, task := range *tasks {
 		worker := &ws.Workers[i%len(ws.Workers)]
@@ -204,7 +197,7 @@ func (ws *WorkStealingScheduler[T]) Run(result chan Recommendation, tasks *[]T, 
 		wg.Add(1)
 		go func(worker *Worker[T]) {
 			defer wg.Done()
-			workerProcessTasks(worker, ws, result, content)
+			workerProcessTasks(worker, ws, result)
 		}(&ws.Workers[i])
 	}
 	// Wait for all workers to finish
@@ -213,27 +206,30 @@ func (ws *WorkStealingScheduler[T]) Run(result chan Recommendation, tasks *[]T, 
 
 func main() {
 	//Num of workers per Pool
-	workers := 4
+	workersContent := 4
+	workersItem := 4
 	//Num of recommanded product per task
 	recommandCount := 3
+	//Num of tasks
+	taskCount := 10
 
-	UserPool := data.CreateRandomUserRatePool(100, 100)
+	UserPool := data.CreateRandomUserRatePool(100, 100, 0.1)
 
 	//pre-computed data itemI -> ItemJ cosine similarity score based on who rated both of them if haveing n item, there will be (n)*(n-1)/2 by user pool
 	similarity_martix := data.ComputeSimilarity_martix(UserPool)
 
 	// Item-Based Collaborative Filtering
-	taskItemPool := data.CreateRandomItemTask(10, 20)
+	taskItemPool := data.CreateRandomItemTask(taskCount, 100, 0.9)
 
 	resultItem := make(chan Recommendation)
-	workerPoolItem := newWorkStealingScheduler[deque.TaskItem](workers)
-	tasksItem := make([]deque.TaskItem, len(taskItemPool))
-	for i := 0; i < len(taskItemPool); i++ {
-		tasksItem[i] = deque.TaskItem{Task: deque.Task{ID: i + 1, Count: recommandCount}, Info: taskItemPool[i]}
+	workerPoolItem := newWorkStealingScheduler[deque.TaskItem](workersItem)
+	tasksItem := make([]deque.TaskItem, taskCount)
+	for i := 0; i < taskCount; i++ {
+		tasksItem[i] = deque.TaskItem{Task: deque.Task{ID: i + 1, Count: recommandCount}, Info: taskItemPool[i], Data: &similarity_martix}
 	}
-	go workerPoolItem.Run(resultItem, &tasksItem, &similarity_martix)
+	go workerPoolItem.Run(resultItem, &tasksItem)
 
-	for i := 0; i < len(taskItemPool); i++ {
+	for i := 0; i < taskCount; i++ {
 		fmt.Println(<-resultItem)
 	}
 
@@ -241,21 +237,19 @@ func main() {
 	//------------------------------------------------------------------------------------------------
 	//content-based
 	contentCart := data.CreateRandomContent(1000, 10, 0.5)
-	taskCartPool := data.CreateRandomTasks(10, 2, 5, 10, 0.5)
+	taskCartPool := data.CreateRandomTasks(taskCount, 2, 5, 10, 0.5)
 
 	resultCart := make(chan Recommendation)
-	workerPool := newWorkStealingScheduler[deque.TaskCart](workers)
-	taskCount := len(taskCartPool)
+	workerPool := newWorkStealingScheduler[deque.TaskCart](workersContent)
 	tasks := make([]deque.TaskCart, taskCount)
 	for i := 0; i < taskCount; i++ {
-		tasks[i] = deque.TaskCart{Task: deque.Task{ID: i + 1, Count: recommandCount}, Info: taskCartPool[i]}
+		tasks[i] = deque.TaskCart{Task: deque.Task{ID: i + 1, Count: recommandCount}, Info: taskCartPool[i], Data: &contentCart}
 	}
-	go workerPool.Run(resultCart, &tasks, &contentCart)
+	go workerPool.Run(resultCart, &tasks)
 
 	for i := 0; i < taskCount; i++ {
 		fmt.Println(<-resultCart)
 	}
-
 	close(resultCart)
 
 	// go func() {

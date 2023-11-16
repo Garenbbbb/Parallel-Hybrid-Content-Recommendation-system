@@ -21,9 +21,25 @@ import (
 // 	{ID: "User5", Items: []data.Content{{ID: "Item5", Features: map[string]float64{"Feature1": 0.4, "Feature2": 0.3, "Feature3": 0.4, "Feature4": 0.3}}}},
 // }
 
+// rating := []Content{
+// 	{ID: "User1", Features: map[string]float64{"Item1": 5, "Item2": 0, "Item3": 2, "Item4": 5, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 5}},
+// 	{ID: "User2", Features: map[string]float64{"Item1": 3, "Item2": 2, "Item3": 5, "Item4": 1, "Item5": 5, "Item6": 3, "Item7": 1, "Item8": 2}},
+// 	{ID: "User3", Features: map[string]float64{"Item1": 2, "Item2": 5, "Item3": 3, "Item4": 4, "Item5": 2, "Item6": 5, "Item7": 6, "Item8": 1}},
+// 	{ID: "User4", Features: map[string]float64{"Item1": 6, "Item2": 2, "Item3": 6, "Item4": 5, "Item5": 2, "Item6": 2, "Item7": 1, "Item8": 5}},
+// 	{ID: "User5", Features: map[string]float64{"Item1": 1, "Item2": 5, "Item3": 1, "Item4": 2, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 4}},
+// }
+
 type Content struct {
 	ID       string
 	Features map[string]float64
+}
+
+type ItemData struct {
+	Features map[string]float64
+}
+
+type RateData struct {
+	Rating map[string]float64
 }
 
 type ShopingCart struct {
@@ -46,11 +62,11 @@ func CreateRandomFeature(limit int, prob float64) map[string]float64 {
 	return features
 }
 
-func CreateRandomContent(num int, limit int, prob float64) map[string]Content {
+func CreateRandomContent(num int, limit int, prob float64) map[string]ItemData {
 
-	data := make(map[string]Content)
+	data := make(map[string]ItemData)
 	for i := 0; i < num; i++ {
-		data["Product"+strconv.Itoa(i)] = Content{ID: "Product" + strconv.Itoa(i), Features: CreateRandomFeature(limit, prob)}
+		data["Product"+strconv.Itoa(i)] = ItemData{Features: CreateRandomFeature(limit, prob)}
 	}
 	return data
 }
@@ -73,33 +89,31 @@ func CreateRandomTasks(num int, item_lower int, item_upper int, feature_limit in
 	return data
 }
 
-func CreateRandomUserRatePool(user int, item int) []Content {
-	return []Content{
-		{ID: "User1", Features: map[string]float64{"Item1": 5, "Item2": 0, "Item3": 2, "Item4": 5, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 5}},
-		{ID: "User2", Features: map[string]float64{"Item1": 3, "Item2": 2, "Item3": 5, "Item4": 1, "Item5": 5, "Item6": 3, "Item7": 1, "Item8": 2}},
-		{ID: "User3", Features: map[string]float64{"Item1": 2, "Item2": 5, "Item3": 3, "Item4": 4, "Item5": 2, "Item6": 5, "Item7": 6, "Item8": 1}},
-		{ID: "User4", Features: map[string]float64{"Item1": 6, "Item2": 2, "Item3": 6, "Item4": 5, "Item5": 2, "Item6": 2, "Item7": 1, "Item8": 5}},
-		{ID: "User5", Features: map[string]float64{"Item1": 1, "Item2": 5, "Item3": 1, "Item4": 2, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 4}},
-		{ID: "User6", Features: map[string]float64{"Item1": 2, "Item2": 6, "Item3": 2, "Item4": 5, "Item5": 4, "Item6": 6, "Item7": 2, "Item8": 5}},
-		{ID: "User7", Features: map[string]float64{"Item1": 0, "Item2": 8, "Item3": 5, "Item4": 0, "Item5": 5, "Item6": 0, "Item7": 5, "Item8": 0}},
-		{ID: "User8", Features: map[string]float64{"Item1": 3, "Item2": 6, "Item3": 1, "Item4": 5, "Item5": 6, "Item6": 0, "Item7": 2, "Item8": 5}},
-		{ID: "User9", Features: map[string]float64{"Item1": 5, "Item2": 3, "Item3": 2, "Item4": 5, "Item5": 1, "Item6": 5, "Item7": 4, "Item8": 5}},
-		{ID: "User10", Features: map[string]float64{"Item1": 5, "Item2": 0, "Item3": 2, "Item4": 5, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 5}},
-		{ID: "User11", Features: map[string]float64{"Item1": 5, "Item2": 0, "Item3": 2, "Item4": 5, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 5}},
-		{ID: "User12", Features: map[string]float64{"Item1": 3, "Item2": 2, "Item3": 5, "Item4": 1, "Item5": 5, "Item6": 3, "Item7": 1, "Item8": 2}},
-		{ID: "User13", Features: map[string]float64{"Item1": 2, "Item2": 5, "Item3": 3, "Item4": 4, "Item5": 2, "Item6": 5, "Item7": 6, "Item8": 1}},
-		{ID: "User14", Features: map[string]float64{"Item1": 6, "Item2": 2, "Item3": 6, "Item4": 5, "Item5": 2, "Item6": 2, "Item7": 1, "Item8": 5}},
-		{ID: "User15", Features: map[string]float64{"Item1": 1, "Item2": 5, "Item3": 1, "Item4": 2, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 4}},
-		{ID: "User16", Features: map[string]float64{"Item1": 2, "Item2": 6, "Item3": 2, "Item4": 5, "Item5": 4, "Item6": 6, "Item7": 2, "Item8": 5}},
-		{ID: "User17", Features: map[string]float64{"Item1": 0, "Item2": 8, "Item3": 5, "Item4": 0, "Item5": 5, "Item6": 0, "Item7": 5, "Item8": 0}},
-		{ID: "User18", Features: map[string]float64{"Item1": 3, "Item2": 6, "Item3": 1, "Item4": 5, "Item5": 6, "Item6": 0, "Item7": 2, "Item8": 5}},
-		{ID: "User19", Features: map[string]float64{"Item1": 5, "Item2": 3, "Item3": 2, "Item4": 5, "Item5": 1, "Item6": 5, "Item7": 4, "Item8": 5}},
+func CreateRandomRating(item int, prob float64) map[string]float64 {
+	rating := make(map[string]float64)
+	for i := 1; i <= item; i++ {
+		randomValue := rand.Float64()
+		featureName := fmt.Sprintf("Item%d", i)
+		if randomValue <= prob {
+			rating[featureName] = 0
+			continue
+		}
+		rating[featureName] = float64(rand.Intn(10))
 	}
+	return rating
 }
 
-func ComputeSimilarity_martix(userRating []Content) map[string]Content {
-	matrix := make(map[string]Content)
-	matrix["similarity"] = Content{Features: make(map[string]float64)}
+// prob to rate be 0
+func CreateRandomUserRatePool(user int, item int, prob float64) []Content {
+	data := make([]Content, user)
+	for i := 0; i < user; i++ {
+		data[i] = Content{ID: "RandomUser" + strconv.Itoa(i), Features: CreateRandomRating(item, prob)}
+	}
+	return data
+}
+
+func ComputeSimilarity_martix(userRating []Content) RateData {
+	matrix := RateData{Rating: make(map[string]float64)}
 	itemCount := len(userRating[0].Features)
 	for i := 1; i < itemCount; i++ {
 		for j := i + 1; j <= itemCount; j++ {
@@ -108,25 +122,22 @@ func ComputeSimilarity_martix(userRating []Content) map[string]Content {
 			item2 := "Item" + strconv.Itoa(j)
 			similarity := cosineSimilarity(item1, item2, userRating)
 			// Store the result in the map
-			key := fmt.Sprintf("%s_to_%s", item1, item2)
-			matrix["similarity"].Features[key] = similarity
+			key1 := fmt.Sprintf("%s_to_%s", item1, item2)
+			matrix.Rating[key1] = similarity
+			key2 := fmt.Sprintf("%s_to_%s", item2, item1)
+			matrix.Rating[key2] = similarity
 		}
 	}
 	return matrix
 }
 
-func CreateRandomItemTask(num int, item int) []Content {
-	return []Content{
-		{ID: "User1", Features: map[string]float64{"Item1": 5, "Item2": 0, "Item3": 2, "Item4": 5, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 5}},
-		{ID: "User2", Features: map[string]float64{"Item1": 3, "Item2": 2, "Item3": 5, "Item4": 1, "Item5": 5, "Item6": 3, "Item7": 1, "Item8": 2}},
-		{ID: "User3", Features: map[string]float64{"Item1": 2, "Item2": 5, "Item3": 3, "Item4": 4, "Item5": 2, "Item6": 5, "Item7": 6, "Item8": 1}},
-		{ID: "User4", Features: map[string]float64{"Item1": 6, "Item2": 2, "Item3": 6, "Item4": 5, "Item5": 2, "Item6": 2, "Item7": 1, "Item8": 5}},
-		{ID: "User5", Features: map[string]float64{"Item1": 1, "Item2": 5, "Item3": 1, "Item4": 2, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 4}},
-		{ID: "User6", Features: map[string]float64{"Item1": 2, "Item2": 6, "Item3": 2, "Item4": 5, "Item5": 4, "Item6": 6, "Item7": 2, "Item8": 5}},
-		{ID: "User7", Features: map[string]float64{"Item1": 0, "Item2": 8, "Item3": 5, "Item4": 0, "Item5": 5, "Item6": 0, "Item7": 5, "Item8": 0}},
-		{ID: "User8", Features: map[string]float64{"Item1": 3, "Item2": 6, "Item3": 1, "Item4": 5, "Item5": 6, "Item6": 0, "Item7": 2, "Item8": 5}},
-		{ID: "User9", Features: map[string]float64{"Item1": 5, "Item2": 3, "Item3": 2, "Item4": 5, "Item5": 1, "Item6": 5, "Item7": 4, "Item8": 5}},
+// prob of 0 rate
+func CreateRandomItemTask(num int, item int, prob float64) []Content {
+	data := make([]Content, num)
+	for i := 0; i < num; i++ {
+		data[i] = Content{ID: "User" + strconv.Itoa(i), Features: CreateRandomRating(item, prob)}
 	}
+	return data
 }
 
 func cosineSimilarity(item1 string, item2 string, ratings []Content) float64 {

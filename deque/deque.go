@@ -13,11 +13,13 @@ type Task struct {
 type TaskCart struct {
 	Task
 	Info data.ShopingCart
+	Data *map[string]data.ItemData
 }
 
 type TaskItem struct {
 	Task
 	Info data.Content
+	Data *data.RateData
 }
 
 type Deque[T any] struct {
