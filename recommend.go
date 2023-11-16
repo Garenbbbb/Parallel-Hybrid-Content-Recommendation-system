@@ -3,25 +3,18 @@ package main
 import (
 	"Work-Stealing-Based-Parallel-Hybrid-Content-Recommendation-system/data"
 	"Work-Stealing-Based-Parallel-Hybrid-Content-Recommendation-system/deque"
-	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
 	"reflect"
 	"sort"
-	"strconv"
 	"sync"
 )
 
-type User struct {
-	ID          string
-	Preferences map[string]float64
+type Recommendation struct {
+	UserID        string
+	RecommendList []RecommendationItem
 }
-
-// type Recommendation struct {
-// 	UserID      string
-// 	Recommended []string
-// }
 
 type Worker[T any] struct {
 	ID    int
@@ -33,22 +26,17 @@ type WorkStealingScheduler[T any] struct {
 	Workers []Worker[T]
 }
 
-type Recommendation struct {
+type RecommendationItem struct {
 	ID              string
 	SimilarityScore float64
 }
 
-func newWorkStealingCartScheduler[T any](workers int) *WorkStealingScheduler[T] {
+func newWorkStealingScheduler[T any](workers int) *WorkStealingScheduler[T] {
 	workerPool := WorkStealingScheduler[T]{}
 	for i := 0; i < workers; i++ {
 		workerPool.Workers = append(workerPool.Workers, Worker[T]{ID: i})
 	}
 	return &workerPool
-}
-
-// Create a new worker with a unique ID
-func newWorker[T any](id int) Worker[T] {
-	return Worker[T]{ID: id}
 }
 
 func contains(items *[]data.Content, itemID string) bool {
@@ -95,16 +83,16 @@ func Similarity(features1 map[string]float64, features2 map[string]float64) floa
 	return roundToDecimal(dotProduct/(magnitude1*magnitude2), 3)
 }
 
-func FindTopSimilarItems(user data.ShopingCart, content *[]data.Content, topN int) []Recommendation {
-	var similarItems []Recommendation
+func FindTopSimilarItems(user data.ShopingCart, content *map[string]data.Content, topN int) []RecommendationItem {
+	var similarItems []RecommendationItem
 
 	user_feature := CartFeatures(&user)
-	for _, item := range *content {
+	for item := range *content {
 		// Check if the item is not in the user's cart
-		if !contains(&user.Items, item.ID) {
+		if !contains(&user.Items, item) {
 			// Compute similarity
-			similarity := Similarity(user_feature, item.Features)
-			similarItems = append(similarItems, Recommendation{ID: item.ID, SimilarityScore: similarity})
+			similarity := Similarity(user_feature, (*content)[item].Features)
+			similarItems = append(similarItems, RecommendationItem{ID: item, SimilarityScore: similarity})
 		}
 	}
 	// Sort
@@ -120,43 +108,72 @@ func roundToDecimal(value float64, decimalPlaces int) float64 {
 	return math.Round(value*precision) / precision
 }
 
+func FindTopSimilarItemsUnRated(task data.Content, content *map[string]data.Content, topN int) []RecommendationItem {
+	var unRated []string
+	var rated []string
+	var similarItemsRating []RecommendationItem
+	for item := range task.Features {
+		if task.Features[item] == 0 {
+			unRated = append(unRated, item)
+		} else {
+			rated = append(rated, item)
+		}
+	}
+	for _, item := range unRated {
+		numerator := 0.0
+		denomertor := 0.0
+		for _, rate := range rated {
+			key := fmt.Sprintf("%s_to_%s", item, rate)
+			value, exists := (*content)["similarity"].Features[key]
+			if exists {
+				numerator += task.Features[rate] * value
+				denomertor += value
+			} else {
+				key := fmt.Sprintf("%s_to_%s", rate, item)
+				value, exists := (*content)["similarity"].Features[key]
+				if exists {
+					numerator += task.Features[rate] * value
+					denomertor += value
+				} else {
+					continue
+				}
+			}
+		}
+		similarItemsRating = append(similarItemsRating, RecommendationItem{ID: item, SimilarityScore: numerator / denomertor})
+	}
+	sort.Slice(similarItemsRating, func(i, j int) bool {
+		return similarItemsRating[i].SimilarityScore > similarItemsRating[j].SimilarityScore
+	})
+	// Return the top N items
+	return similarItemsRating[:int(math.Min(float64(topN), float64(len(similarItemsRating))))]
+}
+
 // Content-based filtering
-func processTask[T any](task T, workerId int, content *[]data.Content) string {
+func processTask[T any](task T, workerId int, content *map[string]data.Content) Recommendation {
 
 	t := reflect.TypeOf(task)
 	switch t {
 	case reflect.TypeOf(deque.TaskCart{}):
 		task, _ := any(task).(deque.TaskCart)
-		topSimilarItems := FindTopSimilarItems(task.Info, content, 3)
-		jsonData, _ := json.Marshal(topSimilarItems)
-		return "Worker " + strconv.Itoa(workerId) + " Processed Task" + strconv.Itoa(task.Task.ID) + " Result: " + string(jsonData) + "recommanded to " + task.Info.ID
+		topSimilarItems := FindTopSimilarItems(task.Info, content, task.Count)
+		recommendationResult := Recommendation{UserID: task.Info.ID, RecommendList: topSimilarItems}
+		// jsonData, _ := json.Marshal(topSimilarItems)
+		// fmt.Println("Worker " + strconv.Itoa(workerId) + " Processed Task" + strconv.Itoa(task.Task.ID)) //+ " Result: " + string(jsonData) + "recommanded to " + task.Info.ID)
+		return recommendationResult
+	case reflect.TypeOf(deque.TaskItem{}):
+		task, _ := any(task).(deque.TaskItem)
+		topSimilarItems := FindTopSimilarItemsUnRated(task.Info, content, task.Count)
+		recommendationResult := Recommendation{UserID: task.Info.ID, RecommendList: topSimilarItems}
+		return recommendationResult
 	default:
 		// Handle other types or provide a default case
 		fmt.Println("Unsupported task type")
 	}
-	return "2"
-}
-
-func (ws *WorkStealingScheduler[T]) Run(result chan string, tasks *[]T, content *[]data.Content) {
-	// Distribute tasks to workers
-	for i, task := range *tasks {
-		worker := &ws.Workers[i%len(ws.Workers)]
-		worker.Deque.PushBack(task)
-	}
-	var wg sync.WaitGroup
-	for i := range ws.Workers {
-		wg.Add(1)
-		go func(worker *Worker[T]) {
-			defer wg.Done()
-			workerProcessTasks(worker, ws, result, content)
-		}(&ws.Workers[i])
-	}
-	// Wait for all workers to finish
-	wg.Wait()
+	return Recommendation{}
 }
 
 // workerProcessTasks simulates a worker processing tasks
-func workerProcessTasks[T any](worker *Worker[T], workerPool *WorkStealingScheduler[T], result chan string, content *[]data.Content) {
+func workerProcessTasks[T any](worker *Worker[T], workerPool *WorkStealingScheduler[T], result chan Recommendation, content *map[string]data.Content) {
 	for {
 		task, ok := worker.Deque.PopFront()
 		if !ok {
@@ -176,79 +193,87 @@ func workerProcessTasks[T any](worker *Worker[T], workerPool *WorkStealingSchedu
 	}
 }
 
-func main() {
-
-	contents := data.CreateRandomContent(1000, 10, 0.5)
-	taskPool := data.CreateRandomTasks(10, 2, 5, 10, 0.5)
-
-	result := make(chan string)
-	workers := 4
-	workerPool := newWorkStealingCartScheduler[deque.TaskCart](workers)
-	taskCount := len(taskPool)
-	tasks := make([]deque.TaskCart, taskCount)
-	for i := 0; i < taskCount; i++ {
-		tasks[i] = deque.TaskCart{Task: deque.Task{ID: i + 1}, Info: taskPool[i]}
+func (ws *WorkStealingScheduler[T]) Run(result chan Recommendation, tasks *[]T, content *map[string]data.Content) {
+	// Distribute tasks to workers
+	for i, task := range *tasks {
+		worker := &ws.Workers[i%len(ws.Workers)]
+		worker.Deque.PushBack(task)
 	}
-	go workerPool.Run(result, &tasks, &contents)
-
-	for i := 0; i < taskCount; i++ {
-		fmt.Println(<-result)
+	var wg sync.WaitGroup
+	for i := range ws.Workers {
+		wg.Add(1)
+		go func(worker *Worker[T]) {
+			defer wg.Done()
+			workerProcessTasks(worker, ws, result, content)
+		}(&ws.Workers[i])
 	}
-
-	close(result)
-
-	// Item-Based Collaborative Filtering
-	// users := []User{
-	// 	{ID: "User1", Preferences: map[string]float64{"Item1": 5, "Item2": 0, "Item3": 2, "Item4": 5, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 5}},
-	// 	{ID: "User2", Preferences: map[string]float64{"Item1": 3, "Item2": 2, "Item3": 5, "Item4": 1, "Item5": 5, "Item6": 3, "Item7": 1, "Item8": 2}},
-	// 	{ID: "User3", Preferences: map[string]float64{"Item1": 2, "Item2": 5, "Item3": 3, "Item4": 4, "Item5": 2, "Item6": 5, "Item7": 6, "Item8": 1}},
-	// 	{ID: "User4", Preferences: map[string]float64{"Item1": 6, "Item2": 2, "Item3": 6, "Item4": 5, "Item5": 2, "Item6": 2, "Item7": 1, "Item8": 5}},
-	// 	{ID: "User5", Preferences: map[string]float64{"Item1": 1, "Item2": 5, "Item3": 1, "Item4": 2, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 4}},
-	// 	{ID: "User6", Preferences: map[string]float64{"Item1": 2, "Item2": 6, "Item3": 2, "Item4": 5, "Item5": 4, "Item6": 6, "Item7": 2, "Item8": 5}},
-	// 	{ID: "User7", Preferences: map[string]float64{"Item1": 0, "Item2": 8, "Item3": 5, "Item4": 0, "Item5": 5, "Item6": 0, "Item7": 5, "Item8": 0}},
-	// 	{ID: "User8", Preferences: map[string]float64{"Item1": 3, "Item2": 6, "Item3": 1, "Item4": 5, "Item5": 6, "Item6": 0, "Item7": 2, "Item8": 5}},
-	// 	{ID: "User9", Preferences: map[string]float64{"Item1": 5, "Item2": 3, "Item3": 2, "Item4": 5, "Item5": 1, "Item6": 5, "Item7": 4, "Item8": 5}},
-	// }
-
-	// itemCount := 8
-	// //compute itemI -> ItemJ cosine similarity score based on who rated both of them if haveing n item, there will be (n)*(n-1)/2
-	// workerPoolItem := WorkStealingScheduler{}
-	// for i := 0; i < workers; i++ {
-	// 	workerPoolItem.Workers = append(workerPool.Workers, newWorker(i))
-	// }
-	// taskCountItem := itemCount * (itemCount - 1) / 2
-
-	// tasksItem := make([]deque.TaskItem, taskCountItem)
-	// index := 0
-	// for i := 0; i < itemCount-1; i++ {
-	// 	for j := i + 1; j < itemCount; j++ {
-	// 		tasksItem[index] = deque.TaskItem{ID: i + 1, Task: [2]int{i, j}}
-	// 		index += 1
-	// 	}
-	// }
-	// cal_done := sync.WaitGroup{}
-	// cal_done.Add(index)
-
-	// similarity_martix := make(chan [3]float32)
-
-	// go workerPoolItem.Run2(similarity_martix, &tasksItem, &users)
-
+	// Wait for all workers to finish
+	wg.Wait()
 }
 
-// func (ws *WorkStealingScheduler) Run2(result chan [3]float32, tasks *[]deque.TaskItem, content *[]User) {
-// 	// Distribute tasks to workers
-// 	for i, task := range *tasks {
-// 		worker := &ws.Workers[i%len(ws.Workers)]
-// 		worker.Deque.PushBack(task)
-// 	}
-// 	var wg sync.WaitGroup
-// 	for i := range ws.Workers {
-// 		wg.Add(1)
-// 		go func(worker *Worker) {
-// 			defer wg.Done()
-// 			workerProcessTasks(worker, ws, result, content)
-// 		}(&ws.Workers[i])
-// 	}
-// 	// Wait for all workers to finish
-// 	wg.Wait()
-// }
+func main() {
+	//Num of workers per Pool
+	workers := 4
+	//Num of recommanded product per task
+	recommandCount := 3
+
+	UserPool := data.CreateRandomUserRatePool(100, 100)
+
+	//pre-computed data itemI -> ItemJ cosine similarity score based on who rated both of them if haveing n item, there will be (n)*(n-1)/2 by user pool
+	similarity_martix := data.ComputeSimilarity_martix(UserPool)
+
+	// Item-Based Collaborative Filtering
+	taskItemPool := data.CreateRandomItemTask(10, 20)
+
+	resultItem := make(chan Recommendation)
+	workerPoolItem := newWorkStealingScheduler[deque.TaskItem](workers)
+	tasksItem := make([]deque.TaskItem, len(taskItemPool))
+	for i := 0; i < len(taskItemPool); i++ {
+		tasksItem[i] = deque.TaskItem{Task: deque.Task{ID: i + 1, Count: recommandCount}, Info: taskItemPool[i]}
+	}
+	go workerPoolItem.Run(resultItem, &tasksItem, &similarity_martix)
+
+	for i := 0; i < len(taskItemPool); i++ {
+		fmt.Println(<-resultItem)
+	}
+
+	close(resultItem)
+	//------------------------------------------------------------------------------------------------
+	//content-based
+	contentCart := data.CreateRandomContent(1000, 10, 0.5)
+	taskCartPool := data.CreateRandomTasks(10, 2, 5, 10, 0.5)
+
+	resultCart := make(chan Recommendation)
+	workerPool := newWorkStealingScheduler[deque.TaskCart](workers)
+	taskCount := len(taskCartPool)
+	tasks := make([]deque.TaskCart, taskCount)
+	for i := 0; i < taskCount; i++ {
+		tasks[i] = deque.TaskCart{Task: deque.Task{ID: i + 1, Count: recommandCount}, Info: taskCartPool[i]}
+	}
+	go workerPool.Run(resultCart, &tasks, &contentCart)
+
+	for i := 0; i < taskCount; i++ {
+		fmt.Println(<-resultCart)
+	}
+
+	close(resultCart)
+
+	// go func() {
+	// 	time.Sleep(2 * time.Second)
+	// 	ch1 <- "Message from channel 1"
+	// }()
+
+	// // Goroutine to send a message on ch2 after 3 seconds
+	// go func() {
+	// 	time.Sleep(3 * time.Second)
+	// 	ch2 <- "Message from channel 2"
+	// }()
+
+	// // Use select to wait for messages from either channel
+	// select {
+	// case msg1 := <-ch1:
+	// 	fmt.Println(msg1)
+	// case msg2 := <-ch2:
+	// 	fmt.Println(msg2)
+	// }
+}

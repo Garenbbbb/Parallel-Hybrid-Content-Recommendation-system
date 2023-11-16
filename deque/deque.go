@@ -6,7 +6,8 @@ import (
 )
 
 type Task struct {
-	ID int
+	ID    int
+	Count int
 }
 
 type TaskCart struct {
@@ -16,7 +17,7 @@ type TaskCart struct {
 
 type TaskItem struct {
 	Task
-	Info [2]int
+	Info data.Content
 }
 
 type Deque[T any] struct {
