@@ -7,28 +7,6 @@ import (
 	"strconv"
 )
 
-// contents := map[string] data.Content{
-// 	{ID: "Item1", Features: map[string]float64{"Feature1": 0.2, "Feature2": 0.8}},
-// 	{ID: "Item2", Features: map[string]float64{"Feature1": 0.1, "Feature2": 0.3,"Feature3": 0.4}},
-// 	{ID: "Item3", Features: map[string]float64{"Feature1": 0.2, "Feature2": 0.1}},
-// 	{ID: "Item4", Features: map[string]float64{"Feature1": 0.3, "Feature2": 0.2, "Feature3": 0.4, "Feature4": 0.3}},
-// }
-
-// taskPool := []data.ShopingCart{
-// 	{ID: "User1", Items: []data.Content{{ID: "Item1", Features: map[string]float64{"Feature1": 0.2, "Feature2": 0.8}}}},
-// 	{ID: "User2", Items: []data.Content{{ID: "Item2", Features: map[string]float64{"Feature1": 0.5}}}},
-// 	{ID: "User3", Items: []data.Content{{ID: "Item3", Features: map[string]float64{"Feature1": 0.6, "Feature2": 0.3}}}},
-// 	{ID: "User5", Items: []data.Content{{ID: "Item5", Features: map[string]float64{"Feature1": 0.4, "Feature2": 0.3, "Feature3": 0.4, "Feature4": 0.3}}}},
-// }
-
-// rating := []Content{
-// 	{ID: "User1", Features: map[string]float64{"Item1": 5, "Item2": 0, "Item3": 2, "Item4": 5, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 5}},
-// 	{ID: "User2", Features: map[string]float64{"Item1": 3, "Item2": 2, "Item3": 5, "Item4": 1, "Item5": 5, "Item6": 3, "Item7": 1, "Item8": 2}},
-// 	{ID: "User3", Features: map[string]float64{"Item1": 2, "Item2": 5, "Item3": 3, "Item4": 4, "Item5": 2, "Item6": 5, "Item7": 6, "Item8": 1}},
-// 	{ID: "User4", Features: map[string]float64{"Item1": 6, "Item2": 2, "Item3": 6, "Item4": 5, "Item5": 2, "Item6": 2, "Item7": 1, "Item8": 5}},
-// 	{ID: "User5", Features: map[string]float64{"Item1": 1, "Item2": 5, "Item3": 1, "Item4": 2, "Item5": 5, "Item6": 5, "Item7": 2, "Item8": 4}},
-// }
-
 type Content struct {
 	ID       string
 	Features map[string]float64
@@ -45,6 +23,40 @@ type RateData struct {
 type ShopingCart struct {
 	ID    string
 	Items []Content
+}
+
+var USER_POOL = []Content{
+	{ID: "UserA", Features: map[string]float64{"Apple": 7, "Orange": 7, "Banana": 5, "Spinach": 5, "Tomato": 6}},
+	{ID: "UserB", Features: map[string]float64{"Apple": 8, "Orange": 6, "Banana": 5, "Spinach": 6, "Tomato": 5}},
+	{ID: "UserC", Features: map[string]float64{"Apple": 6, "Orange": 5, "Banana": 4, "Spinach": 4, "Tomato": 4}},
+	{ID: "UserD", Features: map[string]float64{"Apple": 5, "Orange": 7, "Banana": 6, "Spinach": 5, "Tomato": 5}},
+	{ID: "UserE", Features: map[string]float64{"Apple": 8, "Orange": 7, "Banana": 6, "Spinach": 4, "Tomato": 6}},
+}
+
+var USER = []Content{
+	{ID: "User1", Features: map[string]float64{"Apple": 7, "Orange": 0, "Banana": 7, "Spinach": 0, "Tomato": 0}},
+	{ID: "User2", Features: map[string]float64{"Apple": 6, "Orange": 6, "Banana": 0, "Spinach": 6, "Tomato": 0}},
+	{ID: "User3", Features: map[string]float64{"Apple": 0, "Orange": 0, "Banana": 0, "Spinach": 6, "Tomato": 8}},
+	{ID: "User4", Features: map[string]float64{"Apple": 0, "Orange": 0, "Banana": 8, "Spinach": 0, "Tomato": 0}},
+}
+
+var ITEM_POOL = map[string]ItemData{
+	"Peach":     {Features: map[string]float64{"Sweet": 0.8, "Healthy": 0.6, "Fruit": 1, "Soft": 0.2}},
+	"BlueBerry": {Features: map[string]float64{"Sweet": 0.6, "Healthy": 0.8, "Fruit": 1, "Soft": 0.8}},
+	"Kiwi":      {Features: map[string]float64{"Sweet": 0.5, "Healthy": 0.9, "Fruit": 1, "Soft": 0.8}},
+	"Avocado":   {Features: map[string]float64{"Sweet": 0.3, "Healthy": 0.7, "Fruit": 1, "Soft": 0.4}},
+	"Cucumber":  {Features: map[string]float64{"Sweet": 0.1, "Healthy": 0.8, "Fruit": 1, "Soft": 0.1}},
+	"carrot":    {Features: map[string]float64{"Sweet": 0.2, "Healthy": 0.8, "Fruit": 1, "Soft": 0.1}},
+	"Burger":    {Features: map[string]float64{"Sweet": 0.1, "Healthy": 0.2, "Fruit": 0.2, "Soft": 0.5}},
+	"Fires":     {Features: map[string]float64{"Sweet": 0.3, "Healthy": 0.1, "Fruit": 0.1, "Soft": 0.6}},
+	"Pizza":     {Features: map[string]float64{"Sweet": 0.4, "Healthy": 0.1, "Fruit": 0.1, "Soft": 0.7}},
+}
+
+var CART_TASK = []ShopingCart{
+	{ID: "User1", Items: []Content{{ID: "Apple", Features: map[string]float64{"Sweet": 0.6, "Healthy": 0.8, "Fruit": 1, "Soft": 0.3}}}},
+	{ID: "User2", Items: []Content{{ID: "Celery", Features: map[string]float64{"Sweet": 0.2, "Healthy": 0.8, "Fruit": 1, "Soft": 0.2}}}},
+	{ID: "User3", Items: []Content{{ID: "strawberry", Features: map[string]float64{"Sweet": 0.5, "Healthy": 0.6, "Fruit": 1, "Soft": 0.7}}}},
+	{ID: "User4", Items: []Content{{ID: "corn", Features: map[string]float64{"Sweet": 0.5, "Healthy": 0.6, "Fruit": 1, "Soft": 0.4}}}},
 }
 
 func CreateRandomFeature(limit int, prob float64) map[string]float64 {
@@ -114,12 +126,16 @@ func CreateRandomUserRatePool(user int, item int, prob float64) []Content {
 
 func ComputeSimilarity_martix(userRating []Content) RateData {
 	matrix := RateData{Rating: make(map[string]float64)}
-	itemCount := len(userRating[0].Features)
-	for i := 1; i < itemCount; i++ {
-		for j := i + 1; j <= itemCount; j++ {
+	itemCount := userRating[0].Features
+	var keys []string
+	for key := range itemCount {
+		keys = append(keys, key)
+	}
+	for i := 0; i < len(keys)-1; i++ {
+		for j := i + 1; j < len(keys); j++ {
 			// Calculate cosine similarity
-			item1 := "Item" + strconv.Itoa(i)
-			item2 := "Item" + strconv.Itoa(j)
+			item1 := keys[i]
+			item2 := keys[j]
 			similarity := cosineSimilarity(item1, item2, userRating)
 			// Store the result in the map
 			key1 := fmt.Sprintf("%s_to_%s", item1, item2)

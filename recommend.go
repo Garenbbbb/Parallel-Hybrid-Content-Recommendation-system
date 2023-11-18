@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"os"
 	"reflect"
 	"sort"
 	"sync"
@@ -106,7 +107,7 @@ func FindTopSimilarItems(user data.ShopingCart, content *map[string]data.ItemDat
 		return similarItems[i].SimilarityScore > similarItems[j].SimilarityScore
 	})
 	// Return the top N items
-	return similarItems[:topN]
+	return similarItems[:int(math.Min(float64(topN), float64(len(similarItems))))]
 }
 
 func FindTopSimilarItemsUnRated(task data.Content, rateList *data.RateData, topN int) []RecommendationItem {
@@ -232,21 +233,38 @@ func resultGatherProcess(finalResult chan Recommendation, taskCount int, resultI
 			}
 		}
 	}
-
 }
 
 func main() {
+	arg := os.Args
+	test := arg[1]
 	//Num of workers per Pool
 	workersContent := 3
 	workersItem := 3
 	//Num of recommanded product per task
-	recommandCount := 3
+	var recommandCount int
 	//Num of tasks
-	taskCount := 100
-	userpoolCnt := 10000
-	contentCartCnt := 10000
+	var taskCount int
+	if test == "sample" {
+		taskCount = 4
+		recommandCount = 2
+	} else {
+		taskCount = 100
+		recommandCount = 3
+	}
 
-	UserPool := data.CreateRandomUserRatePool(userpoolCnt, 100, 0.1)
+	userpoolCnt := 1000
+	contentCartCnt := 20
+	var UserPool []data.Content
+	var taskItemPool []data.Content
+	var contentCart map[string]data.ItemData
+	var taskCartPool []data.ShopingCart
+
+	if test == "sample" {
+		UserPool = data.USER_POOL
+	} else {
+		UserPool = data.CreateRandomUserRatePool(userpoolCnt, 100, 0.1)
+	}
 	//pre-computed data itemI -> ItemJ cosine similarity score based on who rated both of them if haveing n item, there will be (n)*(n-1)/2 by user pool
 	a := time.Now()
 	similarity_martix := data.ComputeSimilarity_martix(UserPool)
@@ -256,7 +274,11 @@ func main() {
 	startTime := time.Now()
 	fmt.Println("----------------------Similarity Matrix computed Start Processing----------------------")
 	// Item-Based Collaborative Filtering
-	taskItemPool := data.CreateRandomItemTask(taskCount, 100, 0.9)
+	if test == "sample" {
+		taskItemPool = data.USER
+	} else {
+		taskItemPool = data.CreateRandomItemTask(taskCount, 100, 0.9)
+	}
 
 	resultItem := make(chan Recommendation)
 	workerPoolItem := newWorkStealingScheduler[deque.TaskItem](workersItem)
@@ -267,8 +289,16 @@ func main() {
 
 	//------------------------------------------------------------------------------------------------
 	//content-based
-	contentCart := data.CreateRandomContent(contentCartCnt, 10, 0.5)
-	taskCartPool := data.CreateRandomTasks(taskCount, 2, 5, 10, 0.5)
+	if test == "sample" {
+		contentCart = data.ITEM_POOL
+	} else {
+		contentCart = data.CreateRandomContent(contentCartCnt, 10, 0.5)
+	}
+	if test == "sample" {
+		taskCartPool = data.CART_TASK
+	} else {
+		taskCartPool = data.CreateRandomTasks(taskCount, 2, 5, 10, 0.5)
+	}
 
 	resultCart := make(chan Recommendation)
 	workerPool := newWorkStealingScheduler[deque.TaskCart](workersContent)
