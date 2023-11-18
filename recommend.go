@@ -3,6 +3,7 @@ package main
 import (
 	"Work-Stealing-Based-Parallel-Hybrid-Content-Recommendation-system/data"
 	"Work-Stealing-Based-Parallel-Hybrid-Content-Recommendation-system/deque"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
@@ -235,36 +236,93 @@ func resultGatherProcess(finalResult chan Recommendation, taskCount int, resultI
 	}
 }
 
+const usage = "Usage for large random test: go run recommand.go random (REMINDER! set up values in config.json)"
+const sampple = "Usage for small sample test: go run recommand.go sample"
+
+// Config represents the configuration structure.
+type Config struct {
+	Tasks         int `json:"Tasks"`
+	WorkerContent int `json:"WorkerContent"`
+	WorkerItem    int `json:"WorkerItem"`
+	UserPool      int `json:"UserPool"`
+	RatePool      int `json:"RatePool"`
+	ItemPool      int `json:"ItemPool"`
+	CartNumUpper  int `json:"CartNumUpper"`
+	CartNumLower  int `json:CartNumLower`
+	FeatureNum    int `json:"FeatureNum"`
+	RecommandNum  int `json:"RecommandNum"`
+}
+
+func loadConfig(filename string) Config {
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Println("Error opening config file:", err)
+		// Handle the error appropriately, e.g., by using default values or exiting the program
+	}
+
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	config := Config{}
+	err = decoder.Decode(&config)
+	if err != nil {
+		fmt.Println("Error decoding config JSON:", err)
+		// Handle the error appropriately, e.g., by using default values or exiting the program
+	}
+
+	return config
+}
+
 func main() {
+
 	arg := os.Args
-	test := arg[1]
+	if len(arg) != 2 {
+		fmt.Println(usage)
+		fmt.Println(sampple)
+		return
+	}
+	mode := arg[1]
+
 	//Num of workers per Pool
-	workersContent := 3
-	workersItem := 3
+	var workersContent int
+	var workersItem int
 	//Num of recommanded product per task
 	var recommandCount int
 	//Num of tasks
 	var taskCount int
-	if test == "sample" {
-		taskCount = 4
-		recommandCount = 2
-	} else {
-		taskCount = 100
-		recommandCount = 3
-	}
-
-	userpoolCnt := 1000
-	contentCartCnt := 20
+	var userpoolCnt int
 	var UserPool []data.Content
 	var taskItemPool []data.Content
 	var contentCart map[string]data.ItemData
 	var taskCartPool []data.ShopingCart
 
-	if test == "sample" {
-		UserPool = data.USER_POOL
+	var config Config
+
+	if mode == "random" {
+		config = loadConfig("config.json")
+		workersContent = config.WorkerContent
+		workersItem = config.WorkerItem
+		taskCount = config.Tasks
+		recommandCount = config.RecommandNum
+		userpoolCnt = config.UserPool
+		UserPool = data.CreateRandomUserRatePool(userpoolCnt, config.RatePool, 0.1)
+		taskItemPool = data.CreateRandomItemTask(taskCount, config.RatePool, 0.9)
+		contentCart = data.CreateRandomShop(config.ItemPool, config.FeatureNum, 0.5)
+		taskCartPool = data.CreateRandomTasks(taskCount, config.CartNumLower, config.CartNumUpper, config.FeatureNum, 0.5)
 	} else {
-		UserPool = data.CreateRandomUserRatePool(userpoolCnt, 100, 0.1)
+		workersContent = 1
+		workersItem = 1
+		taskCount = 6
+		recommandCount = 2
+		UserPool = data.USER_POOL
+		taskItemPool = data.USER
+		contentCart = data.ITEM_POOL
+		taskCartPool = data.CART_TASK
+		for _, item := range taskCartPool {
+			fmt.Println(item.ID + " likes " + item.Items[0].ID)
+		}
 	}
+
 	//pre-computed data itemI -> ItemJ cosine similarity score based on who rated both of them if haveing n item, there will be (n)*(n-1)/2 by user pool
 	a := time.Now()
 	similarity_martix := data.ComputeSimilarity_martix(UserPool)
@@ -274,12 +332,6 @@ func main() {
 	startTime := time.Now()
 	fmt.Println("----------------------Similarity Matrix computed Start Processing----------------------")
 	// Item-Based Collaborative Filtering
-	if test == "sample" {
-		taskItemPool = data.USER
-	} else {
-		taskItemPool = data.CreateRandomItemTask(taskCount, 100, 0.9)
-	}
-
 	resultItem := make(chan Recommendation)
 	workerPoolItem := newWorkStealingScheduler[deque.TaskItem](workersItem)
 	tasksItem := make([]deque.TaskItem, taskCount)
@@ -289,17 +341,6 @@ func main() {
 
 	//------------------------------------------------------------------------------------------------
 	//content-based
-	if test == "sample" {
-		contentCart = data.ITEM_POOL
-	} else {
-		contentCart = data.CreateRandomContent(contentCartCnt, 10, 0.5)
-	}
-	if test == "sample" {
-		taskCartPool = data.CART_TASK
-	} else {
-		taskCartPool = data.CreateRandomTasks(taskCount, 2, 5, 10, 0.5)
-	}
-
 	resultCart := make(chan Recommendation)
 	workerPool := newWorkStealingScheduler[deque.TaskCart](workersContent)
 	tasks := make([]deque.TaskCart, taskCount)

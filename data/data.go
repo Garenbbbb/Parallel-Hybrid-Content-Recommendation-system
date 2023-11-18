@@ -26,18 +26,21 @@ type ShopingCart struct {
 }
 
 var USER_POOL = []Content{
-	{ID: "UserA", Features: map[string]float64{"Apple": 7, "Orange": 7, "Banana": 5, "Spinach": 5, "Tomato": 6}},
-	{ID: "UserB", Features: map[string]float64{"Apple": 8, "Orange": 6, "Banana": 5, "Spinach": 6, "Tomato": 5}},
-	{ID: "UserC", Features: map[string]float64{"Apple": 6, "Orange": 5, "Banana": 4, "Spinach": 4, "Tomato": 4}},
-	{ID: "UserD", Features: map[string]float64{"Apple": 5, "Orange": 7, "Banana": 6, "Spinach": 5, "Tomato": 5}},
-	{ID: "UserE", Features: map[string]float64{"Apple": 8, "Orange": 7, "Banana": 6, "Spinach": 4, "Tomato": 6}},
+	{ID: "UserA", Features: map[string]float64{"Apple": 7, "Orange": 7, "Banana": 5, "Spinach": 5, "Tomato": 0, "Ice Cream": 1, "Chips": 0, "PopCorn": 0, "Taco": 0, "Pie": 0}},
+	{ID: "UserB", Features: map[string]float64{"Apple": 8, "Orange": 6, "Banana": 5, "Spinach": 6, "Tomato": 8, "Ice Cream": 0, "Chips": 0, "PopCorn": 0, "Taco": 0, "Pie": 0}},
+	{ID: "UserC", Features: map[string]float64{"Apple": 6, "Orange": 5, "Banana": 4, "Spinach": 4, "Tomato": 0, "Ice Cream": 2, "Chips": 0, "PopCorn": 0, "Taco": 0, "Pie": 0}},
+	{ID: "UserD", Features: map[string]float64{"Apple": 5, "Orange": 7, "Banana": 6, "Spinach": 5, "Tomato": 0, "Ice Cream": 5, "Chips": 8, "PopCorn": 7, "Taco": 6, "Pie": 7}},
+	{ID: "UserE", Features: map[string]float64{"Apple": 1, "Orange": 2, "Banana": 0, "Spinach": 0, "Tomato": 0, "Ice Cream": 6, "Chips": 8, "PopCorn": 9, "Taco": 0, "Pie": 5}},
+	{ID: "UserF", Features: map[string]float64{"Apple": 0, "Orange": 0, "Banana": 1, "Spinach": 2, "Tomato": 0, "Ice Cream": 9, "Chips": 8, "PopCorn": 7, "Taco": 7, "Pie": 7}},
 }
 
 var USER = []Content{
-	{ID: "User1", Features: map[string]float64{"Apple": 7, "Orange": 0, "Banana": 7, "Spinach": 0, "Tomato": 0}},
-	{ID: "User2", Features: map[string]float64{"Apple": 6, "Orange": 6, "Banana": 0, "Spinach": 6, "Tomato": 0}},
-	{ID: "User3", Features: map[string]float64{"Apple": 0, "Orange": 0, "Banana": 0, "Spinach": 6, "Tomato": 8}},
-	{ID: "User4", Features: map[string]float64{"Apple": 0, "Orange": 0, "Banana": 8, "Spinach": 0, "Tomato": 0}},
+	{ID: "User1", Features: map[string]float64{"Apple": 7, "Orange": 0, "Banana": 7, "Spinach": 0, "Tomato": 0, "Ice Cream": 1, "Chips": 0, "PopCorn": 0}},
+	{ID: "User2", Features: map[string]float64{"Apple": 8, "Orange": 0, "Banana": 0, "Spinach": 6, "Tomato": 0, "Ice Cream": 0, "Chips": 0, "PopCorn": 0}},
+	{ID: "User3", Features: map[string]float64{"Apple": 0, "Orange": 0, "Banana": 0, "Spinach": 6, "Tomato": 8, "Ice Cream": 0, "Chips": 0, "PopCorn": 0}},
+	{ID: "User4", Features: map[string]float64{"Apple": 1, "Orange": 0, "Banana": 1, "Spinach": 0, "Tomato": 0, "Ice Cream": 0, "Chips": 0, "PopCorn": 9}},
+	{ID: "User5", Features: map[string]float64{"Apple": 1, "Orange": 2, "Banana": 0, "Spinach": 0, "Tomato": 1, "Ice Cream": 7, "Chips": 0, "PopCorn": 0}},
+	{ID: "User6", Features: map[string]float64{"Apple": 3, "Orange": 0, "Banana": 1, "Spinach": 0, "Tomato": 2, "Ice Cream": 0, "Chips": 8, "PopCorn": 0}},
 }
 
 var ITEM_POOL = map[string]ItemData{
@@ -56,7 +59,9 @@ var CART_TASK = []ShopingCart{
 	{ID: "User1", Items: []Content{{ID: "Apple", Features: map[string]float64{"Sweet": 0.6, "Healthy": 0.8, "Fruit": 1, "Soft": 0.3}}}},
 	{ID: "User2", Items: []Content{{ID: "Celery", Features: map[string]float64{"Sweet": 0.2, "Healthy": 0.8, "Fruit": 1, "Soft": 0.2}}}},
 	{ID: "User3", Items: []Content{{ID: "strawberry", Features: map[string]float64{"Sweet": 0.5, "Healthy": 0.6, "Fruit": 1, "Soft": 0.7}}}},
-	{ID: "User4", Items: []Content{{ID: "corn", Features: map[string]float64{"Sweet": 0.5, "Healthy": 0.6, "Fruit": 1, "Soft": 0.4}}}},
+	{ID: "User4", Items: []Content{{ID: "Chesse", Features: map[string]float64{"Sweet": 0.3, "Healthy": 0.3, "Fruit": 0, "Soft": 0.8}}}},
+	{ID: "User5", Items: []Content{{ID: "HotDog", Features: map[string]float64{"Sweet": 0.3, "Healthy": 0.2, "Fruit": 0, "Soft": 0.5}}}},
+	{ID: "User6", Items: []Content{{ID: "Candy", Features: map[string]float64{"Sweet": 0.8, "Healthy": 0.1, "Fruit": 0.1, "Soft": 0.7}}}},
 }
 
 func CreateRandomFeature(limit int, prob float64) map[string]float64 {
@@ -74,7 +79,7 @@ func CreateRandomFeature(limit int, prob float64) map[string]float64 {
 	return features
 }
 
-func CreateRandomContent(num int, limit int, prob float64) map[string]ItemData {
+func CreateRandomShop(num int, limit int, prob float64) map[string]ItemData {
 
 	data := make(map[string]ItemData)
 	for i := 0; i < num; i++ {

@@ -1,0 +1,12 @@
+{
+  "Tasks" : 10, 
+  "WorkerContent" :3,
+  "WorkerItem" : 3,
+  "UserPool" : 1000,
+  "RatePool" : 100,
+  "CartNumUpper" : 10,
+  "CartNumLower": 5,
+  "ItemPool" : 1000,
+  "FeatureNum" : 10,
+  "RecommandNum" : 5
+}
