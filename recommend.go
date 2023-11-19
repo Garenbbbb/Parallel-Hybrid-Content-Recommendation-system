@@ -10,6 +10,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -236,21 +237,19 @@ func resultGatherProcess(finalResult chan Recommendation, taskCount int, resultI
 	}
 }
 
-const usage = "Usage for large random test: go run recommand.go random (REMINDER! set up values in config.json)"
-const sampple = "Usage for small sample test: go run recommand.go sample"
+const usage = "Usage for large random test: go run recommend.go random (Number of Worker for Content based) (Number of Worker for Collaborative Filter)(REMINDER! set up values in config.json)"
+const sampple = "Usage for small sample test: go run recommend.go sample (Number of Worker for Content based) (Number of Worker for Collaborative Filter)"
 
 // Config represents the configuration structure.
 type Config struct {
-	Tasks         int `json:"Tasks"`
-	WorkerContent int `json:"WorkerContent"`
-	WorkerItem    int `json:"WorkerItem"`
-	UserPool      int `json:"UserPool"`
-	RatePool      int `json:"RatePool"`
-	ItemPool      int `json:"ItemPool"`
-	CartNumUpper  int `json:"CartNumUpper"`
-	CartNumLower  int `json:CartNumLower`
-	FeatureNum    int `json:"FeatureNum"`
-	RecommandNum  int `json:"RecommandNum"`
+	Tasks        int `json:"Tasks"`
+	UserPool     int `json:"UserPool"`
+	RatePool     int `json:"RatePool"`
+	ItemPool     int `json:"ItemPool"`
+	CartNumUpper int `json:"CartNumUpper"`
+	CartNumLower int `json:"CartNumLower"`
+	FeatureNum   int `json:"FeatureNum"`
+	RecommandNum int `json:"RecommandNum"`
 }
 
 func loadConfig(filename string) Config {
@@ -276,7 +275,7 @@ func loadConfig(filename string) Config {
 func main() {
 
 	arg := os.Args
-	if len(arg) != 2 {
+	if len(arg) != 4 {
 		fmt.Println(usage)
 		fmt.Println(sampple)
 		return
@@ -284,8 +283,8 @@ func main() {
 	mode := arg[1]
 
 	//Num of workers per Pool
-	var workersContent int
-	var workersItem int
+	workersContent, _ := strconv.Atoi(arg[2])
+	workersItem, _ := strconv.Atoi(arg[3])
 	//Num of recommanded product per task
 	var recommandCount int
 	//Num of tasks
@@ -300,8 +299,6 @@ func main() {
 
 	if mode == "random" {
 		config = loadConfig("config.json")
-		workersContent = config.WorkerContent
-		workersItem = config.WorkerItem
 		taskCount = config.Tasks
 		recommandCount = config.RecommandNum
 		userpoolCnt = config.UserPool
@@ -359,7 +356,7 @@ func main() {
 		fmt.Println(<-finalResult)
 	}
 	endTime := time.Now()
-	fmt.Println(endTime.Sub(startTime))
+	fmt.Println(endTime.Sub(startTime).Seconds())
 	close(resultItem)
 	close(resultCart)
 	close(finalResult)
